@@ -31,6 +31,11 @@ load_funct(Filename) :-
     forall(member(Dep, D), assertz(Dep)),
     !.
 
+get_order(Order) :-
+    solve(Ints),
+    maplist(plus(4), Ints, Codes),
+    text_to_string(Codes, Order).
+
 % Now to actually solve the problem
 solve(Ordering) :-
     findall(Prereq, prereq_dependent(Prereq, _), Prereqs),
@@ -41,7 +46,7 @@ solve(Ordering) :-
     phrase(solve(Elves, [], SortedTasks, []), Ordering).
 
 elves_init(0, []).
-elves_init(N, [(0, 0)|Es]) :-
+elves_init(N, [(0, -1)|Es]) :-
     N#>0,
     N1#=N-1,
     elves_init(N1, Es).
@@ -49,7 +54,8 @@ elves_init(N, [(0, 0)|Es]) :-
 % In the case where there is an open slot and an eligible task
 % to fill it.
 solve(Elves, InProgress, ToDo, Completed) -->
-    { select((FinishedTask, 0), Elves, Elves1),
+    { select((0, N), Elves, Elves1),
+      N#<0,
       member(Task, ToDo),
       % Inelegant - I'd like to take the complement of Completed
       append(InProgress, ToDo, NotCompleted),
@@ -60,10 +66,21 @@ solve(Elves, InProgress, ToDo, Completed) -->
     solve([(Task, Task)|Elves1],
           [Task|InProgress],
           ToDo1,
-          [FinishedTask|Completed]).
+          Completed).
 
+% If a task is finished, there might be more!
+% So just move it to Completed and set the elf to (0,-1)
 solve(Elves, InProgress, ToDo, Completed) -->
-    { append(InProgress, ToDo, NotCompleted),
+    { select((FinishedTask, 0), Elves, Elves1),
+      select(FinishedTask, InProgress, InProgress1)
+    },
+    [],
+    solve([(0, -1)|Elves1], InProgress1, ToDo, [FinishedTask|Completed]).
+
+% If we find we can't add anything, just decrement the time for each elf
+solve(Elves, InProgress, ToDo, Completed) -->
+    { dif([], InProgress),
+      append(InProgress, ToDo, NotCompleted),
       % If all the tasks not yet completed are dependent on ToDos
       (   maplist(dependent(NotCompleted), ToDo)
       ;   maplist(has_time_left, Elves)
@@ -80,31 +97,23 @@ dependent(Prereqs, Task) :-
     member(Prereq, Prereqs),
     prereq_dependent(Prereq, Task).
 
-% Works
 subtract_time(Elves, Elves1) :-
     min_time_left(Elves, Min),
     maplist(subtract_time(Min), Elves, Elves1).
-    
-% Works
+
 min_time_left(Elves, N) :-
     maplist(get_time_left, Elves, Times),
     min_list(Times, N).
 
-% Works
-get_time_left((_, N), N).
+% Need to give a silly value for negative numbers
+% As I'm using them to signify empty slots
+get_time_left((_, N), N) :-
+    N#>=0.
+get_time_left((_, N), 1000000) :-
+    N#<0.
 
-% Works
 subtract_time(T,  (M, N),  (M, N1)) :-
     N1#=N-T.
 
-% Works
 has_time_left((_, N)) :-
     N#>0.
-
-solve_test(Task) :-
-    findall(Prereq, prereq_dependent(Prereq, _), Prereqs),
-    findall(Dependent, prereq_dependent(_, Dependent), Dependents),
-    union(Prereqs, Dependents, Tasks),
-    sort(Tasks, SortedTasks),
-    member(Task, SortedTasks),
-    \+ prereq_dependent(_, Task).
