@@ -46,6 +46,13 @@ load_funct(Filename) :-
 total_time(T) :-
     solve(Steps),
     sum_list(Steps, T).
+
+% If you change the DCG to record task on line 78 and [] on line 103
+% you can get the actual order!
+get_order(Order) :-
+    solve(Ints),
+    maplist(plus(4), Ints, Codes),
+    text_to_string(Codes, Order).
     
 solve(TimeSteps) :-
     numlist(61, 86, Tasks),
