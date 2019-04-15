@@ -4,6 +4,10 @@
 :- op(920, fy, *).
 :- (dynamic prereq_dependent/2).
 
+% To solve, run
+% load_funct("myfile.txt").
+% get_order(N).
+
 % Parse my file!
 dependencies([E|Rest]) -->
     dependency(E),
