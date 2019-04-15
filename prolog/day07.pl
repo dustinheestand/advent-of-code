@@ -5,8 +5,15 @@
 :- (dynamic prereq_dependent/2).
 
 % To solve, run
-% load_funct("myfile.txt").
-% get_order(N).
+% load_funct("day07input.txt").
+% total_time(T).
+
+% Funny story - this oughtn't to have been solved with a DCG
+% because I only need to accumulate time, not store the list of
+% my steps. However, since I started by trying to get a list of steps
+% (which is CFNRMLOTKWAHPBJSYZVGUQXIDE btw), I just took the easy road
+% and modified my program to record the time in between each new step, rather 
+% than the step itself. Then I could just sum the steps.
 
 % Parse my file!
 dependencies([E|Rest]) -->
@@ -35,19 +42,15 @@ load_funct(Filename) :-
     forall(member(Dep, D), assertz(Dep)),
     !.
 
-get_order(Order) :-
-    solve(Ints),
-    maplist(plus(4), Ints, Codes),
-    text_to_string(Codes, Order).
-
 % Now to actually solve the problem
-solve(Ordering) :-
-    findall(Prereq, prereq_dependent(Prereq, _), Prereqs),
-    findall(Dependent, prereq_dependent(_, Dependent), Dependents),
-    ord_union(Prereqs, Dependents, Tasks),
-    sort(Tasks, SortedTasks),
+total_time(T) :-
+    solve(Steps),
+    sum_list(Steps, T).
+    
+solve(TimeSteps) :-
+    numlist(61, 86, Tasks),
     elves_init(5, Elves),
-    phrase(solve(Elves, [], SortedTasks, []), Ordering).
+    phrase(solve(Elves, [], Tasks, []), TimeSteps).
 
 elves_init(0, []).
 elves_init(N, [(0, -1)|Es]) :-
@@ -58,15 +61,14 @@ elves_init(N, [(0, -1)|Es]) :-
 % In the case where there is an open slot and an eligible task
 % to fill it.
 solve(Elves, InProgress, ToDo, Completed) -->
-    { select((0, N), Elves, Elves1),
-      N#<0,
+    { select((0, _), Elves, Elves1),
       member(Task, ToDo),
       % Inelegant - I'd like to take the complement of Completed
       append(InProgress, ToDo, NotCompleted),
       \+ dependent(NotCompleted, Task),
       select(Task, ToDo, ToDo1)
     },
-    [Task],
+    [],
     solve([(Task, Task)|Elves1],
           [Task|InProgress],
           ToDo1,
@@ -89,9 +91,9 @@ solve(Elves, InProgress, ToDo, Completed) -->
       (   maplist(dependent(NotCompleted), ToDo)
       ;   maplist(has_time_left, Elves)
       ),
-      subtract_time(Elves, Elves1)
+      subtract_time(Elves,  (Elves1, Min))
     },
-    [],
+    [Min],
     solve(Elves1, InProgress, ToDo, Completed).
 
 solve(_, [], [], _) -->
@@ -101,7 +103,7 @@ dependent(Prereqs, Task) :-
     member(Prereq, Prereqs),
     prereq_dependent(Prereq, Task).
 
-subtract_time(Elves, Elves1) :-
+subtract_time(Elves,  (Elves1, Min)) :-
     min_time_left(Elves, Min),
     maplist(subtract_time(Min), Elves, Elves1).
 
