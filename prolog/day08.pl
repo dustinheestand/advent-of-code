@@ -48,43 +48,53 @@ node(Sum, Value) -->
     num(ChildNum),
     num(MetadataNum),
     nodeList(ChildNum, ChildSum, ChildValues),
-    mList(MetadataNum, MetadataSum, MetadataValues),
-    { Sum#=ChildSum+MetadataSum,
-    ChildNum #>0,
-    calc_node_value(ChildValues, MetadataValues, Value)
+    mList(MetadataNum, MetadataValues),
+    { 
+        ChildNum #>0,
+        sum_list(MetadataValues, MetadataSum),
+        Sum#=ChildSum+MetadataSum,
+        calc_node_value(ChildValues, MetadataValues, Value)
     }.
 
+% This is not the cause of non-termination - a false at the end causes
+% program to terminate
 node(MetadataSum, MetadataSum) -->
     num(0),
     num(MetadataNum),
-    mList(MetadataNum, MetadataSum, _).
-    
+    mList(MetadataNum, Vals),
+    {
+        sum_list(Vals, MetadataSum)
+    }.
+
+% A false at the beginning does not cause program to terminate
 nodeList(0, 0, []) -->
     [].
+% The recursive call to nodeList is non-terminating
 nodeList(N, Sum, [NodeValue|Values]) -->
-    { N1#=N-1,
-      Sum#=NodeSum+ListSum
+    { 
+        N #>0,
+        N1#=N-1,
+        Sum#=NodeSum+ListSum
     },
     node(NodeSum, NodeValue),
     nodeList(N1, ListSum, Values).
 
-mList(0, 0,[]) -->
+mList(0,[]) -->
     [].
 
-mList(N, Sum, [E|NodeReferences]) -->
-    num(E),
-    mList(N1, ListSum, NodeReferences),
+mList(N, [E|NodeReferences]) -->
     { N#>0,
-      N1#=N-1,
-      Sum#=E+ListSum
-    }.
+      N1#=N-1
+    },
+    num(E),
+    mList(N1, NodeReferences).
 
 num(N) -->
     [N].
 
 calc_node_value(Values, References, Value):-
     maplist(my_nth(Values), References, L1),
-    sumlist(L1, Value).
+    sum_list(L1, Value).
 
 my_nth(List, Index, 0):-
     \+nth1(Index, List, _).
@@ -92,4 +102,4 @@ my_nth(List, Index, 0):-
 my_nth(List, Index, E):-
     nth1(Index, List, E).
 
-sample_list([3,2,2, 3, 0, 3, 10, 11, 12, 1, 1, 0, 1, 99, 2,1, 1, 2,0,0,0,0,2,1]).
+sample_list([3,2,2, 3, 0, 3, 10, 11, 12, 1, 1, 0, 1, 99, 2,1, 1, 2,0,1,33,0,0,2,1]).
